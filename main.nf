@@ -18,7 +18,7 @@ process combineFastq {
     input:
         tuple file(directory), val(sample_name) 
     output:
-        path "${sample_name}.fastq.gz", optional: true, emit: sample
+        path "${sample_name}.fastq.gz", optional: false, emit: sample
         path "${sample_name}.stats", optional: true, emit: stats
         env STATUS, emit: status
     script:
@@ -29,15 +29,22 @@ process combineFastq {
         def expected_length_min = "$params.approx_size" 
         int max = (expected_length_max.toInteger()) * 1.5
         int min = (expected_length_min.toInteger()) * 0.5
-    """
-    STATUS=${sample_name}",Failed due to insufficient reads"
-    fastcat -s ${sample_name} -r ${sample_name}.stats -x ${directory} > /dev/null
-    fastcat -a "$min" -b "$max" -s ${sample_name} -r ${sample_name}.interim -x ${directory} > ${sample_name}.fastq
-    if [[ "\$(wc -l <"${sample_name}.interim")" -ge "$value" ]];  then 
-        gzip ${sample_name}.fastq
+    if (!params.multiple_samples) {
+        """
+        STATUS=${sample_name}",Failed due to insufficient reads"
+        fastcat -s ${sample_name} -r ${sample_name}.stats -x ${directory} > /dev/null
+        fastcat -a "$min" -b "$max" -s ${sample_name} -r ${sample_name}.interim -x ${directory} > ${sample_name}.fastq
+        if [[ "\$(wc -l <"${sample_name}.interim")" -ge "$value" ]];  then 
+            gzip ${sample_name}.fastq
+            STATUS=${sample_name}",Completed successfully"
+        fi
+        """
+    } else {
+        """
+        fastcat -r ${sample_name}.stats ${directory} > /dev/null
         STATUS=${sample_name}",Completed successfully"
-    fi
-    """
+        """
+    }
 }
 
 
@@ -138,6 +145,7 @@ process assembleCore {
     do
         SUBSET_NAME=\$(basename -s .fastq \$SUBSET)
         canu \
+            useGrid=false \
             -p \$SUBSET_NAME \
             -d assm_\${SUBSET_NAME} \
             -maxThreads=$params.threads \

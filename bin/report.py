@@ -135,7 +135,8 @@ def pair_samples_with_mafs(sample_names):
         maf = 'assembly_maf/' + sample_name + '.final.fasta.maf'
         if os.path.exists(fasta) and os.path.exists(maf):
             fasta_mafs[sample_name] = {'fasta': fasta,
-                                       'maf': maf}
+                                       'maf': maf
+                                       }
         else:
             print("Missing data required for report: " + sample_name)
     return(fasta_mafs)
@@ -298,11 +299,11 @@ def main():
     seq_summary = read_files(args.per_barcode_stats)
     section = report_doc.add_section()
     barcode_counts = (
-        pd.DataFrame(seq_summary['sample_name'].value_counts())
+        pd.DataFrame(seq_summary['filename'].value_counts())
         .sort_index()
         .reset_index()
         .rename(
-            columns={'index': 'sample', 'sample_name': 'count'})
+            columns={'index': 'sample', 'filename': 'count'})
     )
     bc_counts = bars.simple_bar(
         barcode_counts['sample'].astype(str), barcode_counts['count'],

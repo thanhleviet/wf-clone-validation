@@ -190,12 +190,19 @@ def fastq_ingress(input_folder, output_folder, samples, sanitize, min_barcode, m
         sample_sheet = check_sample_sheet(samples)
     }
     // resolve whether we have demultiplexed data or single sample
-    data = resolve_barcode_structure(input_folder, sample_sheet, min_barcode, max_barcode)
-    // return error if data empty after processing
-    if (data == null) {
-        println("")
-        println("Error: `--fastq` Unable to find FASTQ files or BARCODE folders in the provided --fastq path")
-        exit 1
+    if (!params.multiple_samples) {
+        data = resolve_barcode_structure(input_folder, sample_sheet, min_barcode, max_barcode)
+        // return error if data empty after processing
+        if (data == null) {
+            println("")
+            println("Error: `--fastq` Unable to find FASTQ files or BARCODE folders in the provided --fastq path")
+            exit 1
+        }
+    } else {
+        pattern = "${input_folder}/*.fastq.gz"
+        data = Channel.fromPath(pattern, checkIfExists: true)
+                      .map { path -> tuple(path, path.simpleName) }
     }
+    
     return data
 }
