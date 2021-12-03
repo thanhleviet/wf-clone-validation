@@ -4,7 +4,7 @@ import groovy.json.JsonBuilder
 nextflow.enable.dsl = 2
 
 include { fastq_ingress } from './lib/fastqingress' 
-
+include { ROTATE } from './lib/rotate'
 
 def nameIt(ch) {
     return ch.map { it -> return tuple(it.simpleName, it) }.groupTuple()
@@ -85,6 +85,7 @@ process filterHostReads {
 
 
 process assembleCore {
+    tag {fastq.simpleName}
     errorStrategy = {task.attempt <= 5 ? 'retry' : 'ignore'}
     maxRetries 5
     label "wfplasmid"
@@ -418,7 +419,14 @@ workflow pipeline {
         named_drafts_samples = named_drafts.join(named_samples)
 
         // Polish draft assembly
-        polished = medakaPolishAssembly(named_drafts_samples)
+        polished_medaka = medakaPolishAssembly(named_drafts_samples)
+        
+        if (params.rotate) {
+            polished = ROTATE(polished_medaka.polished, polished_medaka.status)
+        } else {
+            polished = polished_medaka
+        }
+        
 
         final_status = sample_fastqs.status
             .join(assemblies.status,remainder: true)
